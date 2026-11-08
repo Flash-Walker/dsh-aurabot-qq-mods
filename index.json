@@ -372,6 +372,36 @@
       "publishedAt": "2026-11-06T06:03:15.318Z"
     },
     {
+      "id": "roast-mode",
+      "name": "毒舌模式",
+      "version": "1.0.4",
+      "description": "主人发关键字开关的损友式吐槽模式：开着时整段接管该聊天，语料可改读文本文件（每行一句）",
+      "category": "social",
+      "tags": [
+        "毒舌",
+        "吐槽",
+        "互动"
+      ],
+      "author": "RookieApe-tao",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "filesystem",
+        "process",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "tag": "roast-mode-v1.0.4",
+      "file": "roast-mode-v1.0.4.zip",
+      "path": "roast-mode-v1.0.4/roast-mode-v1.0.4.zip",
+      "size": 9014,
+      "sha256": "1f376852fd3f6b820ac50958cd0572be58c417cfa993c9aa7954387f3e2c9896",
+      "commit": "4c709bcf002bba894896aceaac14fbe7c26491f6",
+      "publishedAt": "2026-11-08T15:53:07.925Z"
+    },
+    {
       "id": "room3d",
       "name": "房间",
       "version": "1.0.0",
@@ -560,5 +590,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-08T15:21:08.901Z"
+  "generatedAt": "2026-11-08T15:53:07.925Z"
 }
