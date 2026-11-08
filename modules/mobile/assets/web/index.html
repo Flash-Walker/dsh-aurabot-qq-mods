@@ -425,12 +425,20 @@ async function loadHistory(id, before) {
     const q = new URLSearchParams({ botId: id, ...(before ? { before } : {}) })
     const r = await api('/api/mobile/messages?' + q)
     const list = (r.messages || []).map(norm)
+    historyFailed.delete(id)
     const existing = msgs.get(id) || [], combined = before ? [...list, ...existing] : [...list, ...existing.filter((m) => m.pending || m.local || !list.some((r) => r.id === m.id))]
     msgs.set(id, [...new Map(combined.map((m) => [m.id, m])).values()].sort((a, b) => a.at - b.at))
     if (current?.id === id) renderMsgs(!before)
     return list.length
-  } catch (e) { if (e.message !== 'unauthorized') toast('历史读取失败：' + e.message); return 0 }
+  } catch (e) {
+    if (e.message === 'unauthorized') return 0
+    // 读不到时不要显示成「还没聊过」，留个重试入口，先自动再试一次
+    if (!before && !msgs.has(id)) { historyFailed.add(id); if (current?.id === id) renderMsgs(true); if (!loadHistory.retried?.has(id)) { (loadHistory.retried ||= new Set()).add(id); setTimeout(() => { if (current?.id === id && !msgs.has(id)) loadHistory(id) }, 1500) } }
+    else toast('历史读取失败：' + e.message)
+    return 0
+  }
 }
+const historyFailed = new Set()
 const norm = (m) => ({ id: String(m.id || Math.random()), botId: m.botId, kind: String(m.kind || 'text').toLowerCase(), text: m.text || '', url: m.url || m.imageUrl || '', mine: Boolean(m.mine), at: Number(m.at) || Date.now(), durationMs: m.durationMs || 0 })
 
 function bubble(m, prev, next) {
@@ -455,7 +463,7 @@ function renderMsgs(toBottom) {
     const next = list[i + 1]
     if (m.kind !== 'system' && !(next && next.kind !== 'system' && next.mine === m.mine && next.at - m.at < 120000)) html += `<div class="stamp${m.mine ? ' mine' : ''}">${esc(new Date(m.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }))}${m.failed ? ' · 没发出去' : ''}</div>`
   })
-  if (!list.length) html = '<div class="empty"><b>开始聊天</b>她会在这里回你，QQ 那边也能看到。</div>'
+  if (!list.length) html = historyFailed.has(current.id) ? '<div class="empty"><b>没读到聊天记录</b><button class="btn secondary" id="retryHistory" style="margin-top:14px">重试</button></div>' : '<div class="empty"><b>开始聊天</b>她会在这里回你，QQ 那边也能看到。</div>'
   if (typing.has(current.id)) html += '<div class="m"><div class="av" data-cav="1"></div><div class="b typing"><i></i><i></i><i></i></div></div>'
   const prevH = sc.scrollHeight
   $('msgs').innerHTML = html
@@ -466,6 +474,7 @@ function renderMsgs(toBottom) {
     if (img.dataset.local || src.startsWith('blob:')) img.src = src; else authed(src).then((u) => (img.src = u))
     img.onclick = () => { $('viewer').querySelector('img').src = img.src; $('viewer').classList.add('open') }
   })
+  $('retryHistory')?.addEventListener('click', () => loadHistory(current.id))
   $('msgs').querySelectorAll('.voice[data-url]').forEach((v) => (v.onclick = () => playVoice(v)))
   $('msgs').querySelectorAll('.b:not(.media):not(.typing)').forEach(holdToCopy)
   const more = $('more'); if (more) more.onclick = async () => { const first = (msgs.get(current.id) || [])[0]; const n = await loadHistory(current.id, first?.at); if (!n) more.remove(); else sc.scrollTop = sc.scrollHeight - prevH }
