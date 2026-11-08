@@ -3,6 +3,37 @@
   "assetsBase": "https://github.com/aureth-labs/dsh-aurabot-qq-mods/releases/download/",
   "modules": [
     {
+      "id": "beg-for-money",
+      "name": "讨饭",
+      "version": "1.0.1",
+      "description": "群友提到打钱时伸手要饭并发收款码，记账要管理员私聊确认，确认后在原群道谢（有印象卡片时加「慷慨」）",
+      "category": "social",
+      "tags": [
+        "讨饭",
+        "记账",
+        "打赏"
+      ],
+      "author": "cdcp998",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "filesystem",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "homepage": "https://github.com/cdcp998/beg-for-money",
+      "tag": "beg-for-money-v1.0.1",
+      "file": "beg-for-money-v1.0.1.zip",
+      "path": "beg-for-money-v1.0.1/beg-for-money-v1.0.1.zip",
+      "size": 46240,
+      "sha256": "0358257521e0777dcb057b13182e4ecce2438200551a18c525bc8c85dfa1e6e8",
+      "commit": "2e70ca6b538e1370cfe4874ef1b3cd4c17549655",
+      "publishedAt": "2026-11-08T18:06:00.062Z"
+    },
+    {
       "id": "browser-ops",
       "name": "逛网页（浏览器自动化）",
       "version": "1.2.0",
@@ -590,5 +621,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-08T16:24:59.880Z"
+  "generatedAt": "2026-11-08T18:06:00.062Z"
 }
