@@ -299,8 +299,8 @@ const unread = new Map()
 
 const toast = (t) => { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200) }
 // 她回复里的 <face:名字>、<sticker:名字>、<voice>…</voice> 是发 QQ 时用的标记，网页里换成看得懂的样子
-const plainText = (s) => String(s ?? '').replace(/<face:([^>]{1,20})>/g, '[$1]').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')
-const richText = (s) => esc(String(s ?? '').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')).replace(/&lt;face:([^&]{1,20})&gt;/g, '<span class="face">$1</span>')
+const plainText = (s) => String(s ?? '').replace(/<face:([^>]{1,20})>/g, '[$1]').replace(/\[sticker\]/g, '[表情]').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')
+const richText = (s) => esc(String(s ?? '').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')).replace(/&lt;face:([^&]{1,20})&gt;/g, '<span class="face">$1</span>').replace(/\[(?:sticker|表情)\]/g, '<span class="face">表情</span>')
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const initial = (name) => [...String(name || '?').replace(/^QQ\s*·\s*/, '')][0] || '?'
 const timeText = (at) => {
