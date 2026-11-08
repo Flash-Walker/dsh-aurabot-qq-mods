@@ -176,7 +176,8 @@ input,textarea{font:inherit;color:inherit}
 .composer{margin:4px 12px calc(env(safe-area-inset-bottom) + 12px);padding:6px 6px 6px 5px;display:flex;align-items:flex-end;background:var(--glass-2);backdrop-filter:saturate(180%) blur(28px);-webkit-backdrop-filter:saturate(180%) blur(28px);border-radius:30px;box-shadow:var(--shadow-lg),inset 0 1px 0 var(--edge);position:relative;z-index:2;transition:box-shadow .35s}
 .composer:focus-within{box-shadow:var(--shadow-lg),inset 0 1px 0 var(--edge),0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
 .field{flex:1;display:flex;align-items:flex-end;padding:2px 0 2px 4px}
-.field textarea{flex:1;border:0;outline:0;background:transparent;resize:none;max-height:136px;padding:8px 2px;line-height:1.45}
+.field textarea{flex:1;border:0;outline:0;background:transparent;resize:none;min-height:40px;max-height:136px;padding:9px 2px;line-height:22px;box-sizing:border-box}
+.face{display:inline-block;padding:0 6px;margin:0 1px;border-radius:999px;background:var(--chip);font-size:.86em;line-height:1.6;vertical-align:1px;color:var(--sub)}
 .field textarea::placeholder{color:var(--dim)}
 .send{height:42px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none;transform:scale(.4) rotate(-45deg);opacity:0;width:0;margin-left:0;pointer-events:none;transition:transform .5s var(--spring),opacity .25s,width .35s var(--ease),margin .35s var(--ease);box-shadow:0 10px 22px -10px rgba(65,118,230,.7)}
 .send.show{transform:none;opacity:1;width:42px;margin-left:4px;pointer-events:auto}.send svg{width:18px;height:18px}
@@ -297,6 +298,9 @@ const msgs = new Map() // botId → [{...}]
 const unread = new Map()
 
 const toast = (t) => { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200) }
+// 她回复里的 <face:名字>、<sticker:名字>、<voice>…</voice> 是发 QQ 时用的标记，网页里换成看得懂的样子
+const plainText = (s) => String(s ?? '').replace(/<face:([^>]{1,20})>/g, '[$1]').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')
+const richText = (s) => esc(String(s ?? '').replace(/<sticker:([^>]{1,30})>/g, '[表情]').replace(/<\/?voice>/g, '')).replace(/&lt;face:([^&]{1,20})&gt;/g, '<span class="face">$1</span>')
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const initial = (name) => [...String(name || '?').replace(/^QQ\s*·\s*/, '')][0] || '?'
 const timeText = (at) => {
@@ -384,7 +388,7 @@ function renderHero() {
   const top = [...bots].sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')))[0]
   h.hidden = !top || Boolean(($('q').value || '').trim()); if (!top) return
   $('heroName').textContent = String(top.name || '').replace(/^QQ\s*·\s*/, '')
-  $('heroLast').textContent = top.lastText || '去和她说点什么吧'
+  $('heroLast').textContent = plainText(top.lastText) || '去和她说点什么吧'
   $('heroState').textContent = (ws && ws.readyState === 1 ? '在线' : '连接中') + (top.lastAt ? ' · ' + timeText(top.lastAt) : '')
   setAv($('heroAv'), top)
   h.onclick = () => openChat(top.id); h.onkeydown = (e) => { if (e.key === 'Enter') openChat(top.id) }
@@ -398,7 +402,7 @@ function renderList() {
   if (!sorted.length) { el.innerHTML = '<div class="empty"><b>没找到</b>换个词试试。</div>'; return }
   el.innerHTML = sorted.map((b) => {
     const n = current?.id === b.id && !document.hidden ? 0 : (unread.get(b.id) || 0) + (b.unread || 0)
-    return `<button class="row${n ? ' unread' : ''}" data-id="${esc(b.id)}"><div class="av" data-av="${esc(b.id)}"></div><div class="mid"><div class="name"><b>${esc(b.name)}</b><time>${esc(timeText(b.lastAt))}</time></div><div class="last"><span>${esc(b.lastText || '　')}</span>${n ? `<i class="badge">${n > 99 ? '99+' : n}</i>` : ''}</div></div></button>`
+    return `<button class="row${n ? ' unread' : ''}" data-id="${esc(b.id)}"><div class="av" data-av="${esc(b.id)}"></div><div class="mid"><div class="name"><b>${esc(b.name)}</b><time>${esc(timeText(b.lastAt))}</time></div><div class="last"><span>${esc(plainText(b.lastText) || '　')}</span>${n ? `<i class="badge">${n > 99 ? '99+' : n}</i>` : ''}</div></div></button>`
   }).join('')
   el.querySelectorAll('[data-av]').forEach((a) => setAv(a, bots.find((b) => b.id === a.dataset.av)))
   el.querySelectorAll('.row').forEach((r) => (r.onclick = () => openChat(r.dataset.id)))
@@ -436,7 +440,7 @@ function bubble(m, prev, next) {
   let body
   if (m.kind === 'image' || m.kind === 'sticker') body = `<div class="b media ${m.kind}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}"><img alt="" data-src="${esc(m.url)}" data-local="${m.local ? 1 : ''}"></div>`
   else if (m.kind === 'voice') body = `<div class="b voice-b${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}"><div class="voice" data-url="${esc(m.url)}"><span class="pl">▶</span><span class="wave"></span><span>${Math.max(1, Math.round(m.durationMs / 1000))}″</span></div>${m.text ? `<div style="margin-top:6px;opacity:.85">${esc(m.text)}</div>` : ''}</div>`
-  else body = `<div class="b${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}">${esc(m.text)}</div>`
+  else body = `<div class="b${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}">${richText(m.text)}</div>`
   const last = !(next && next.kind !== 'system' && next.mine === m.mine && next.at - m.at < 120000)
   const av = m.mine ? '' : `<div class="av${last ? '' : ' ghost'}" data-cav="1"></div>`
   return `<div class="${cls}">${av}${body}</div>`
