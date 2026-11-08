@@ -129,6 +129,40 @@
       "publishedAt": "2026-11-02T04:14:04.226Z"
     },
     {
+      "id": "feed",
+      "name": "喂食",
+      "version": "3.2.0",
+      "description": "按作息饿、会自己找零食也会喊饿。饿了有曲线、吃了有反应，还带一块能投喂她、她会回话的面板。",
+      "category": "social",
+      "tags": [
+        "喂食",
+        "饥饿",
+        "好感度",
+        "养成"
+      ],
+      "author": "z729769794",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [
+        "mood",
+        "memory"
+      ],
+      "capabilities": [
+        "filesystem",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "tag": "feed-v3.2.0",
+      "file": "feed-v3.2.0.zip",
+      "path": "feed-v3.2.0/feed-v3.2.0.zip",
+      "size": 23370,
+      "sha256": "1dd1fa76a7c07945708d0097ae66393be8c889a098b8847fc4e55d8ffead5354",
+      "commit": "ab7e148627f9599f97c8f3f3809c17b6cc9de167",
+      "publishedAt": "2026-11-08T19:15:21.180Z"
+    },
+    {
       "id": "file-inbox",
       "name": "私聊收件箱",
       "version": "1.3.0",
@@ -653,5 +687,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-08T18:06:23.101Z"
+  "generatedAt": "2026-11-08T19:15:21.180Z"
 }
