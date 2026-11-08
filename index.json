@@ -403,6 +403,38 @@
       "publishedAt": "2026-11-06T06:03:15.318Z"
     },
     {
+      "id": "price-watch",
+      "name": "价格监控",
+      "version": "1.0.1",
+      "description": "盯住商品价格：超级好价、早期好价、降价提醒、本插件记录的历史最低价；/监控价格 与 /查询价格 支持多平台比价。",
+      "category": "tool",
+      "tags": [
+        "价格",
+        "监控",
+        "比价"
+      ],
+      "author": "cdcp998",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "network",
+        "filesystem",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "homepage": "https://github.com/cdcp998/price-watch",
+      "tag": "price-watch-v1.0.1",
+      "file": "price-watch-v1.0.1.zip",
+      "path": "price-watch-v1.0.1/price-watch-v1.0.1.zip",
+      "size": 45328,
+      "sha256": "d82938e40da850f89198ee707b27f84c63c2fb90d68b770274ce536fa7731c86",
+      "commit": "8624c147f9ee9a06af6f44ce0198abbb61f86766",
+      "publishedAt": "2026-11-08T18:06:23.101Z"
+    },
+    {
       "id": "roast-mode",
       "name": "毒舌模式",
       "version": "1.0.4",
@@ -621,5 +653,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-08T18:06:00.062Z"
+  "generatedAt": "2026-11-08T18:06:23.101Z"
 }
