@@ -131,6 +131,37 @@
       "publishedAt": "2026-11-08T15:21:08.901Z"
     },
     {
+      "id": "daily-art",
+      "name": "每日推图 · 逛图站",
+      "version": "3.1.0",
+      "description": "在同一页管理 Konachan 和 Yande.re 定时推图及 QQ 按需找图。",
+      "category": "platform",
+      "tags": [
+        "图片",
+        "定时",
+        "Konachan"
+      ],
+      "author": "Reinero",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "network",
+        "filesystem",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "tag": "daily-art-v3.1.0",
+      "file": "daily-art-v3.1.0.zip",
+      "path": "daily-art-v3.1.0/daily-art-v3.1.0.zip",
+      "size": 29730,
+      "sha256": "b04a3ebf4adf3381796d562f138e4fe2146999bc9f7f574b476ebc22dfd36643",
+      "commit": "087bce6eb3b04f9d0c0bf757c5ee203807a80761",
+      "publishedAt": "2026-11-09T14:07:34.898Z"
+    },
+    {
       "id": "douyin",
       "name": "刷抖音",
       "version": "2.3.0",
@@ -884,5 +915,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T14:07:11.920Z"
+  "generatedAt": "2026-11-09T14:07:34.898Z"
 }
