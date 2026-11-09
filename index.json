@@ -35,6 +35,39 @@
       "publishedAt": "2026-11-09T04:04:03.200Z"
     },
     {
+      "id": "autonomy",
+      "name": "自主生活",
+      "version": "0.6.0",
+      "description": "让她自己决定这一刻做什么、下次什么时候醒。运行时不预设任何权限：调模型、操作手机都要主人在面板里逐项授权后才生效。",
+      "category": "desktop",
+      "tags": [
+        "自主",
+        "生活",
+        "手机"
+      ],
+      "author": "asyncxt",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "filesystem",
+        "process",
+        "network",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "homepage": "https://github.com/asyncxt/aurabot-mod-autonomy",
+      "tag": "autonomy-v0.6.0",
+      "file": "autonomy-v0.6.0.zip",
+      "path": "autonomy-v0.6.0/autonomy-v0.6.0.zip",
+      "size": 44323,
+      "sha256": "1333fe9d11ccada94d26fe69bf7cbdf7760f3bc74f7747c615541a9fc1cd3c00",
+      "commit": "ae9fed288dbe87476f3e76c86e85ee5a2863f115",
+      "publishedAt": "2026-11-09T12:20:16.126Z"
+    },
+    {
       "id": "beg-for-money",
       "name": "讨饭",
       "version": "1.0.1",
@@ -506,7 +539,7 @@
     {
       "id": "phone",
       "name": "手机逛逛",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "description": "通过 ADB 操控 Android 手机：按主人教好的流程自动签到/浏览/点赞，或自由推理完成一句话任务",
       "category": "platform",
       "tags": [
@@ -527,13 +560,13 @@
         "plugin-internals"
       ],
       "replacesBuiltin": false,
-      "tag": "phone-v0.3.1",
-      "file": "phone-v0.3.1.zip",
-      "path": "phone-v0.3.1/phone-v0.3.1.zip",
-      "size": 78718,
-      "sha256": "9ec530ad6b1dd25f713c817aff0a2e65c20811afdfbb8387b6aef47ce19c019a",
-      "commit": "3827609ce75cd6cb67d60ebd01b7a62f0d9cf448",
-      "publishedAt": "2026-11-06T06:03:15.318Z"
+      "tag": "phone-v0.4.0",
+      "file": "phone-v0.4.0.zip",
+      "path": "phone-v0.4.0/phone-v0.4.0.zip",
+      "size": 118709,
+      "sha256": "e87bd979be47d0a3d70237fe9f8f34ea7f784004ff1fce4b8b8af4a945174723",
+      "commit": "ae9fed288dbe87476f3e76c86e85ee5a2863f115",
+      "publishedAt": "2026-11-09T12:20:16.126Z"
     },
     {
       "id": "price-watch",
@@ -851,5 +884,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T10:26:34.480Z"
+  "generatedAt": "2026-11-09T12:20:16.126Z"
 }
