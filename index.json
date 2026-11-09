@@ -315,6 +315,40 @@
       "publishedAt": "2026-11-06T17:20:05.895Z"
     },
     {
+      "id": "kanzhibo",
+      "name": "抖音看直播",
+      "version": "1.0.0",
+      "description": "用独立浏览器（Edge/Chrome）经 CDP 挂在抖音直播间：进房、发一条定制评论、续粉丝团灯牌、主人在 QQ 私聊里命令发弹幕、开播主动提醒；点之前先验面板，点后按 +100 / 聊天播报 / 进度三级确认。",
+      "category": "platform",
+      "tags": [
+        "抖音",
+        "直播",
+        "挂机",
+        "灯牌",
+        "CDP"
+      ],
+      "author": "h752603-source",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "network",
+        "filesystem",
+        "process",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "tag": "kanzhibo-v1.0.0",
+      "file": "kanzhibo-v1.0.0.zip",
+      "path": "kanzhibo-v1.0.0/kanzhibo-v1.0.0.zip",
+      "size": 106069,
+      "sha256": "a6e25814e726cf07142bb44200bd0fd8749971514f063ea9a3ea1129d640ca83",
+      "commit": "07b0fb419410484c2878a634cd9875aee9d9f845",
+      "publishedAt": "2026-11-09T09:54:57.521Z"
+    },
+    {
       "id": "meme-wiki",
       "name": "梗百科",
       "version": "0.2.6",
@@ -403,6 +437,39 @@
       "sha256": "2adc8b04aac2c01e18b5b91a237202a1de0d162a5f19592a249b4c155fa1a6f9",
       "commit": "3880b8766bfc4dba643a05b7d81a03a9c22afd43",
       "publishedAt": "2026-11-07T14:19:58.408Z"
+    },
+    {
+      "id": "news",
+      "name": "每日新闻一图流",
+      "version": "1.0.0",
+      "description": "每天从公开 RSS 源挑国内近期新闻，调用生图绘制中文一图流，附带来源链接发到指定聊天。",
+      "category": "creative",
+      "tags": [
+        "新闻",
+        "一图流",
+        "生图",
+        "每日简报"
+      ],
+      "author": "HTwoOhwater",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [
+        "imagegen"
+      ],
+      "capabilities": [
+        "network",
+        "filesystem",
+        "plugin-config"
+      ],
+      "replacesBuiltin": false,
+      "tag": "news-v1.0.0",
+      "file": "news-v1.0.0.zip",
+      "path": "news-v1.0.0/news-v1.0.0.zip",
+      "size": 15105,
+      "sha256": "d7b223660c8e5d8c058ead08baea58045708d8804ad6f1f77c4773a4696efbb7",
+      "commit": "07b0fb419410484c2878a634cd9875aee9d9f845",
+      "publishedAt": "2026-11-09T09:54:57.521Z"
     },
     {
       "id": "pet",
@@ -751,5 +818,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T04:04:31.044Z"
+  "generatedAt": "2026-11-09T09:54:57.521Z"
 }
