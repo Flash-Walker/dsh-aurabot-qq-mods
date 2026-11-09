@@ -133,7 +133,7 @@
     {
       "id": "daily-art",
       "name": "每日推图 · 逛图站",
-      "version": "3.1.0",
+      "version": "3.2.0",
       "description": "在同一页管理 Konachan 和 Yande.re 定时推图及 QQ 按需找图。",
       "category": "platform",
       "tags": [
@@ -153,13 +153,13 @@
         "plugin-internals"
       ],
       "replacesBuiltin": false,
-      "tag": "daily-art-v3.1.0",
-      "file": "daily-art-v3.1.0.zip",
-      "path": "daily-art-v3.1.0/daily-art-v3.1.0.zip",
-      "size": 29730,
-      "sha256": "b04a3ebf4adf3381796d562f138e4fe2146999bc9f7f574b476ebc22dfd36643",
-      "commit": "087bce6eb3b04f9d0c0bf757c5ee203807a80761",
-      "publishedAt": "2026-11-09T14:07:34.898Z"
+      "tag": "daily-art-v3.2.0",
+      "file": "daily-art-v3.2.0.zip",
+      "path": "daily-art-v3.2.0/daily-art-v3.2.0.zip",
+      "size": 36537,
+      "sha256": "3466cace471bbd701b3473c8dd6f60c6d740099cff2b0bcd28c01166f9a7d9ca",
+      "commit": "753e525afd2c5205254a00fda759649ee68e057b",
+      "publishedAt": "2026-11-09T16:12:08.199Z"
     },
     {
       "id": "douyin",
@@ -915,5 +915,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T14:07:34.898Z"
+  "generatedAt": "2026-11-09T16:12:08.199Z"
 }
