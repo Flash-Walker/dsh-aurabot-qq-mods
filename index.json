@@ -625,6 +625,38 @@
       "publishedAt": "2026-11-06T12:25:21.237Z"
     },
     {
+      "id": "token-budget",
+      "name": "预算管家",
+      "version": "1.2.0",
+      "description": "省 token：注入内容预算封顶、本地向量只带最相关的 16 条记忆、估算记账、日超预算自动熔断",
+      "category": "manage",
+      "tags": [
+        "省token",
+        "预算",
+        "熔断",
+        "记忆"
+      ],
+      "author": "RookieApe-tao",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "filesystem",
+        "plugin-config",
+        "plugin-internals",
+        "network"
+      ],
+      "replacesBuiltin": false,
+      "tag": "token-budget-v1.2.0",
+      "file": "token-budget-v1.2.0.zip",
+      "path": "token-budget-v1.2.0/token-budget-v1.2.0.zip",
+      "size": 16606,
+      "sha256": "ae6d3ed943b81acf23bd185348ea88c08cc4fa15655279ec5c513c6ceaee2a15",
+      "commit": "2d46c4980095c75c6410596472f901f6ff4d4b61",
+      "publishedAt": "2026-11-09T04:04:31.044Z"
+    },
+    {
       "id": "tophub",
       "name": "刷热榜",
       "version": "0.3.1",
@@ -719,5 +751,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T04:04:03.200Z"
+  "generatedAt": "2026-11-09T04:04:31.044Z"
 }
