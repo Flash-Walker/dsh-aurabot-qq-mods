@@ -660,6 +660,39 @@
       "publishedAt": "2026-11-05T12:14:07.525Z"
     },
     {
+      "id": "starmap",
+      "name": "星图",
+      "version": "1.1.0",
+      "description": "把 Aurabot 自己的记忆渲染成可交互的星图，两种看法：关系星图看结构，银河云图看时间。",
+      "category": "tool",
+      "tags": [
+        "星图",
+        "记忆",
+        "识海",
+        "银河",
+        "可视化"
+      ],
+      "author": "zcx1021",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "filesystem",
+        "plugin-internals",
+        "plugin-config",
+        "network"
+      ],
+      "replacesBuiltin": false,
+      "tag": "starmap-v1.1.0",
+      "file": "starmap-v1.1.0.zip",
+      "path": "starmap-v1.1.0/starmap-v1.1.0.zip",
+      "size": 35001,
+      "sha256": "b32990720df229e23114fe264d385e3faaa00ce53d332d993a08639c364b3694",
+      "commit": "94a2b955d7c7fe9b5e84584a8e6f67d3752b2477",
+      "publishedAt": "2026-11-09T10:26:34.480Z"
+    },
+    {
       "id": "tieba-reader",
       "name": "逛贴吧（只读）",
       "version": "1.5.2",
@@ -818,5 +851,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T09:54:57.521Z"
+  "generatedAt": "2026-11-09T10:26:34.480Z"
 }
