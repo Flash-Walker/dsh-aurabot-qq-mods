@@ -3,6 +3,38 @@
   "assetsBase": "https://github.com/aureth-labs/dsh-aurabot-qq-mods/releases/download/",
   "modules": [
     {
+      "id": "aura-mimo",
+      "name": "aura-mimo",
+      "version": "1.0.0",
+      "description": "用一段参考音频零训练克隆音色，接入小米 MiMo TTS，让她用自己的声音说话。",
+      "category": "creative",
+      "tags": [
+        "语音",
+        "TTS",
+        "音色克隆",
+        "MiMo"
+      ],
+      "author": "zcx1021",
+      "license": "MIT",
+      "api": 1,
+      "minPluginVersion": "1.2.0",
+      "requires": [],
+      "capabilities": [
+        "network",
+        "filesystem",
+        "plugin-config",
+        "plugin-internals"
+      ],
+      "replacesBuiltin": false,
+      "tag": "aura-mimo-v1.0.0",
+      "file": "aura-mimo-v1.0.0.zip",
+      "path": "aura-mimo-v1.0.0/aura-mimo-v1.0.0.zip",
+      "size": 23294,
+      "sha256": "c607e4848d482a52930b15949f5aa962c6d5285cdd74405060d899aa0081f4b9",
+      "commit": "93d91e03c708ed3cbc3bb34f4b1b7eaa64138a18",
+      "publishedAt": "2026-11-09T04:04:03.200Z"
+    },
+    {
       "id": "beg-for-money",
       "name": "讨饭",
       "version": "1.0.1",
@@ -687,5 +719,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T03:01:10.813Z"
+  "generatedAt": "2026-11-09T04:04:03.200Z"
 }
