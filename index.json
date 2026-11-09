@@ -350,7 +350,7 @@
     {
       "id": "kanzhibo",
       "name": "抖音看直播",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "description": "用独立浏览器（Edge/Chrome）经 CDP 挂在抖音直播间：进房、发一条定制评论、续粉丝团灯牌、主人在 QQ 私聊里命令发弹幕、开播主动提醒；点之前先验面板，点后按 +100 / 聊天播报 / 进度三级确认。",
       "category": "platform",
       "tags": [
@@ -373,13 +373,13 @@
         "plugin-internals"
       ],
       "replacesBuiltin": false,
-      "tag": "kanzhibo-v1.0.0",
-      "file": "kanzhibo-v1.0.0.zip",
-      "path": "kanzhibo-v1.0.0/kanzhibo-v1.0.0.zip",
-      "size": 106069,
-      "sha256": "a6e25814e726cf07142bb44200bd0fd8749971514f063ea9a3ea1129d640ca83",
-      "commit": "07b0fb419410484c2878a634cd9875aee9d9f845",
-      "publishedAt": "2026-11-09T09:54:57.521Z"
+      "tag": "kanzhibo-v1.0.2",
+      "file": "kanzhibo-v1.0.2.zip",
+      "path": "kanzhibo-v1.0.2/kanzhibo-v1.0.2.zip",
+      "size": 108314,
+      "sha256": "e5f978d9ef3907704ff5be8a5571029720b810c06608e07cef588769c1d1e60d",
+      "commit": "5b02b4e204f70fd709ac07462d5e5233afff0d55",
+      "publishedAt": "2026-11-09T13:35:00.423Z"
     },
     {
       "id": "meme-wiki",
@@ -884,5 +884,5 @@
     }
   ],
   "revoked": [],
-  "generatedAt": "2026-11-09T12:20:16.126Z"
+  "generatedAt": "2026-11-09T13:35:00.423Z"
 }
