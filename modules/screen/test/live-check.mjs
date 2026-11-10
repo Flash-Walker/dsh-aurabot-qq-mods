@@ -11,9 +11,24 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { createHdc, resolveHdc } from '../lib/hdc.mjs'
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DATA = join(tmpdir(), 'screen-live-data')
 mkdirSync(DATA, { recursive: true })
+
+/**
+ * 真机联调要先有手机。没有设备（别人的机器、CI、没插线）就干净退出 0，
+ * 别让一个手动脚本把全量测试跑红。
+ */
+const probe = await createHdc({
+  bin: resolveHdc(process.env.HDC_PATH || ''),
+  sn: process.env.HDC_SN || '',
+}).health()
+if (!probe.ok) {
+  console.log(`⚠ 跳过真机联调：${probe.error || 'hdc 没看到设备'}（插上手机、开 USB 调试后再跑）`)
+  process.exit(0)
+}
 
 const calls = []
 const rules = []
