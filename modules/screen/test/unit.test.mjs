@@ -11,7 +11,7 @@ import { pickJson, pickActions, screenAction, shouldIgnoreDone, diffLabels, fram
 import { resolveBundle } from '../lib/launcher.mjs'
 import { APPS, abilityFromIconId, resolveApp, learnFromItems, pickAbilities } from '../lib/apps.mjs'
 
-/** 一段迷你控件树，结构照拄真机（图标名字不可点，热区在带包名 id 的父容器上） */
+/** 一段迷你控件树，结构照抄真机（图标名字不可点，热区在带包名 id 的父容器上） */
 const tree = {
   attributes: { bounds: '[0,0][1080,2406]', type: '' },
   children: [
