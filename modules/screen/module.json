@@ -1,0 +1,14 @@
+{
+  "id": "screen",
+  "name": "手机屏幕",
+  "version": "1.0.0",
+  "description": "用 hdc 操作鸿蒙手机：看一眼画面、读界面文字、点按滑、打字按键、像人一样从桌面点开 App，还能自己挑应用去玩一阵再回来汇报",
+  "category": "tool",
+  "tags": ["鸿蒙", "HarmonyOS", "hdc", "手机", "自动化"],
+  "author": "Flash-Walker",
+  "license": "MIT",
+  "api": 1,
+  "minPluginVersion": "1.2.0",
+  "requires": [],
+  "capabilities": ["process", "filesystem", "plugin-config"]
+}
