@@ -54,7 +54,7 @@ return function ScreenPanel({ toast }) {
           row('设备', (status.targets || []).join(', ')),
           row('hdc', status.hdcVersion),
           row('状态', playing ? '正在自动玩：' + status.playing.app + '（' + (status.playing.mode || 'fast') + '）' : '空闲'),
-          playing ? row('进度', (status.playing.steps || 0) + ' 步 / ' + (status.playing.dumps || 0) + ' 帧 / 还剩 ' + Math.round((status.playing.left || 0) / 1000) + ' 秒') : null,
+          playing ? row('进度', (status.playing.steps || 0) + ' 步 / ' + (status.playing.dumps || 0) + ' 帧 / 记下 ' + (status.playing.takeaways || 0) + '/' + (status.playing.want || 0) + ' 条 / 还剩 ' + Math.round((status.playing.left || 0) / 1000) + ' 秒') : null,
         )
       : h(ui.Empty, null, busy ? '读状态…' : '还没读到状态'),
 
