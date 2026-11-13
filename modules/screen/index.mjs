@@ -16,14 +16,14 @@ import { createDevice } from './lib/device.mjs'
 import { createLauncher, resolveBundle } from './lib/launcher.mjs'
 import { resolveApp } from './lib/apps.mjs'
 import { flatten, findByText, pointOf, toLines } from './lib/layout.mjs'
-import { createPlay } from './lib/play.mjs'
+import { createPlay, parsePlayAsk } from './lib/play.mjs'
 
 export default {
   id: 'screen',
   name: '手机屏幕',
-  version: '1.1.0',
+  version: '1.2.1',
   api: 1,
-  description: '用 hdc 操作鸿蒙手机：命令开应用、点按滑、打字、看图看文字，还能自己去玩十分钟再回来汇报',
+  description: '用 hdc 操作鸿蒙手机：命令开应用、点按滑、打字、看图看文字，还能自己去玩一阵、边看边记内容再回来汇报',
   defaults: {
     hdc: '',
     sn: '',
@@ -35,8 +35,14 @@ export default {
     stepMs: 4500,
     dumpEvery: 3,
     playMinutes: 10,
+    autoPlay: true,
+    playWant: 3,
+    frameLines: 28,
+    frameChars: 60,
+    snippetChars: 500,
     doneGraceRatio: 0.3,
     minSteps: 8,
+    maxDoneIgnores: 4,
     maxRecoverable: 12,
   },
   settings: [
@@ -50,6 +56,11 @@ export default {
     { key: 'stepMs', label: '自主玩时两个动作之间的间隔（毫秒）', type: 'number', min: 3000, max: 30000, step: 500 },
     { key: 'dumpEvery', label: '自主玩时每几个动作看一次屏幕', type: 'number', min: 1, max: 10, step: 1, hint: '越大越省 token，越小越不容易迷路；默认 3' },
     { key: 'playMinutes', label: '说「玩十分钟」但没说数字时的默认时长（分钟）', type: 'number', min: 1, max: 30, step: 1 },
+    { key: 'autoPlay', label: '主人说「去玩手机」时由模块直接开玩', type: 'switch', hint: '默认开：识别到「去玩十分钟手机」「去知乎找几篇，半小时」就自己启动循环，不再赌她会不会调工具。关掉后只靠她自己决定调 screen_play' },
+    { key: 'playWant', label: '自主玩时至少要读进几条内容才算「读过」', type: 'number', min: 0, max: 12, step: 1, hint: '默认 3。没攒够就无视她的「收工」；填 0 = 不看收获，只看时间' },
+    { key: 'frameLines', label: '自主玩时每帧给几行界面文字', type: 'number', min: 12, max: 60, step: 1, hint: '默认 28。越大越不容易漏内容，也越费 token' },
+    { key: 'frameChars', label: '自主玩时每条界面文字最多几个字', type: 'number', min: 20, max: 200, step: 10, hint: '默认 60。太短会把长段落截成半句' },
+    { key: 'snippetChars', label: '自主玩时每帧附带的正文摘录字数上限', type: 'number', min: 0, max: 2000, step: 100, hint: '默认 500；填 0 = 不给摘录，只给清单' },
   ],
   panel: 'panel.js',
 
@@ -71,6 +82,39 @@ export default {
     const dev = createDevice({ hdc: hdcFacade, dataDir: (p) => api.dataDir(p), log })
     const launcher = createLauncher({ dev, log })
     const play = createPlay({ api, dev, launcher, settings: cfg, log })
+
+    /**
+     * 主人说「去玩十分钟手机」「去知乎找几篇书评，半小时」——模块自己接住，直接开玩。
+     * 为什么不让给她：她会不会调 screen_play 是不确定的（规则写得再硬也可能被当成闲聊），
+     * 一旦她选择"嘴上说去了"，十分钟就白费了。这里只认主人私聊 + 祈使句，接住就回一句"去了"。
+     */
+    api.on('message', async (msg) => {
+      try {
+        if (cfg().autoPlay === false) return false
+        if (!msg || msg.kind !== 'private') return false
+        if (typeof api.isOwner === 'function' && !api.isOwner(msg.userId)) return false
+        if (play.state().running) return false
+        const ask = parsePlayAsk(msg.text, { defaultMinutes: Number(cfg().playMinutes) || 10 })
+        if (!ask) return false
+        log.info(`[screen] 接住「${String(msg.text).slice(0, 24)}」：直接开玩 ${ask.app || '随便挑一个'} ${ask.minutes} 分钟${ask.want ? `，目标 ${ask.want} 条` : ''}`)
+        const r = await play.start({
+          minutes: ask.minutes,
+          app: ask.app,
+          goal: ask.goal,
+          want: ask.want,
+          chatId: msg.chatId,
+          allowPost: false,
+        })
+        const want = Math.max(ask.want || Number(cfg().playWant) || 3, 1)
+        await api.reply(msg, r.ok
+          ? `去了${ask.app ? `，看${ask.app}` : ''}。${ask.minutes} 分钟后回来，这次至少要读进 ${want} 条内容才收工。`
+          : r.message)
+        return true
+      } catch (e) {
+        log.warn(`[screen] 接「去玩手机」出错：${e && e.message}`)
+        return false
+      }
+    })
 
     /** 给自己看一眼：当前在什么界面（给失败信息垫底用） */
     async function peek(chatId) {
@@ -311,7 +355,7 @@ export default {
                 info.hdcVersion ? `hdc ${info.hdcVersion}` : '',
                 fg.ok ? (fg.system || !fg.bundle ? '前台：桌面/系统界面' : `前台：${fg.bundle} / ${fg.ability}`) : '前台：读不到',
                 st.running
-                  ? `正在自动玩：${st.app}（${st.mode}），已 ${Math.round(st.elapsed / 60000 * 10) / 10} 分钟，走了 ${st.steps} 步，看了 ${st.dumps} 帧`
+                  ? `正在自动玩：${st.app}（${st.mode}），已 ${Math.round(st.elapsed / 60000 * 10) / 10} 分钟，走了 ${st.steps} 步，看了 ${st.dumps} 帧，记下 ${st.takeaways || 0}/${st.want || 0} 条收获`
                   : '没在自动玩',
               ].filter(Boolean).join('\n'),
             }
@@ -319,21 +363,23 @@ export default {
         }),
         api.defineTool({
           name: 'screen_play',
-          description: '自己去玩手机：打开一个 App，自己决定每一步（甩着看内容、点开帖子、开别的 App 再回来…），玩到时间再回桌面并汇报。主人说「去玩十分钟手机」这类话时用。默认优先用系统命令、并且不每步都看屏幕，省时间也省 token。不指定 app 就自己从桌面上挑一个。',
+          description: '自己去玩手机：打开一个 App，自己决定每一步（甩着看内容、点开帖子、开别的 App 再回来…），边看边记下读到的东西，玩到时间再回桌面并汇报。主人说「去玩十分钟手机」，或者**给了时限还要求多看几篇/找几篇**（"去知乎找《白夜行》书评，半小时，多看几篇"）时都必须用它——不要自己用工具轮转两圈就回来回答。默认优先用系统命令、并且不每步都看屏幕，省时间也省 token。不指定 app 就自己从桌面上挑一个。',
           properties: {
-            minutes: { type: 'number', description: '玩几分钟，1~30，默认按设置' },
-            app: { type: 'string', description: '应用名或包名，比如 抖音 / QQ / 小红书；不填就自己挑' },
-            goal: { type: 'string', description: '这次想干嘛，比如「随便刷一刷，看看有没有好玩的视频」' },
+            minutes: { type: 'number', description: '玩几分钟，1~30，默认按设置。主人给了时限（半小时/30 分钟）就按他说的填' },
+            app: { type: 'string', description: '应用名或包名，比如 抖音 / QQ / 知乎 / 小红书；不填就自己挑' },
+            goal: { type: 'string', description: '这次想干嘛，比如「随便刷一刷，看看有没有好玩的视频」「找《白夜行》的书评，多读几篇」' },
+            want: { type: 'number', description: '这次至少要读进几条具体内容（几篇/几个观点），默认按设置的 3。主人说「多看几篇」就按他说的篇数填' },
             mode: { type: 'string', description: 'fast（默认，优先命令+盲操作）/ human（像人一样点图标、搜索）' },
             allowPost: { type: 'boolean', description: '这次是否允许评论/发消息/关注点赞。只有主人明确要求才传 true' },
           },
-          execute: async ({ minutes, app, goal, mode, allowPost }) => {
+          execute: async ({ minutes, app, goal, want, mode, allowPost }) => {
             const g = guard(); if (g) return g
             const mins = Number(minutes) || Number(cfg().playMinutes) || 10
             const r = await play.start({
               minutes: mins,
               app,
               goal,
+              want,
               mode,
               allowPost: !!allowPost && cfg().allowPost !== false,
               chatId: chat.chatId,
@@ -410,10 +456,11 @@ export default {
           const parts = raw.replace(/\s*(像人|human)$/, '').trim().split(/\s+/).filter(Boolean)
           const minutes = Number(parts[0]) || Number(cfg().playMinutes) || 10
           const app = Number(parts[0]) ? parts[1] || '' : parts[0] || ''
-          const r = await play.start({ minutes, app, chatId, allowPost: false, mode: human ? 'human' : '' })
+          const goal = (Number(parts[0]) ? parts.slice(2) : parts.slice(1)).join(' ')
+          const r = await play.start({ minutes, app, goal, chatId, allowPost: false, mode: human ? 'human' : '' })
           return r.message
         }
-        return '用法：/手机 看|状态|桌面|开 <应用> [像人]|停 <应用>|玩 <分钟> [应用] [像人]|停'
+        return '用法：/手机 看|状态|桌面|开 <应用> [像人]|停 <应用>|玩 <分钟> [应用] [想干嘛…] [像人]|停'
       },
     })
 
@@ -434,6 +481,8 @@ export default {
         steps: st.steps || 0,
         dumps: st.dumps || 0,
         blind: st.blind || 0,
+        takeaways: st.takeaways || 0,
+        want: st.want || 0,
         left: st.left || 0,
         reason: st.reason || '',
         trace: st.trace || [],
@@ -461,6 +510,9 @@ export default {
       '点了没反应就换方法，不要重复同一下：先 screen_key Back，或者 screen_app(restart) 重开；两次都不成就直说没成。',
       '说结果前先确认：没成功就直说没成功，不要描述你没看到的东西。',
       '主人说「去玩十分钟手机」「自己刷会儿抖音」这类话：用 screen_play（app 填他说的那个，minutes 按他说的，没说就按设置）。开了以后你会先回一句「去了」，到点她会自己回来汇报——不要在那十分钟里反复追问。',
+      '主人给了时限、或者要求「多看几篇/多找几篇」：同样必须用 screen_play，把他说的时长填进 minutes、把「几篇」填进 want（「半小时去知乎找《白夜行》书评，多看几篇」就传 minutes:30, app:"知乎", goal:"找《白夜行》书评，多读几篇", want:5）。不要自己用 screen_open + screen_layout 转两圈、找到一篇就回来回答——那等于把他给的半小时扔了。',
+      '她自己在循环里读到的内容会记成 note（每篇一两句）。汇报时讲的是这些内容：哪一篇、谁的观点、哪句话。说不出具体东西就照实说没读进去，不要拿「我滑了几下、点了几下」充数。',
+      '你自己用工具看完内容回来回答主人时，也一样：先说读到了什么具体的东西，再说过程。',
       '红线（任何情况下都不做）：付款、下单、转账、充值、删除、卸载、注销、退出登录；碰到登录/验证码/人脸就停下来说明白，绝不绕过。',
       '评论、发消息、关注、点赞属于对外发言：只有当主人在这一轮明确让你这么做、并且 screen_play 传了 allowPost 才可以，否则只浏览。',
     ].join('\n'))
