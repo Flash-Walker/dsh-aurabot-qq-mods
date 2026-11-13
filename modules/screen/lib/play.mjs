@@ -18,7 +18,7 @@
  */
 import { sleep } from './hdc.mjs'
 import { flatten, pointOf } from './layout.mjs'
-import { resolveApp } from './apps.mjs'
+import { APPS, resolveApp } from './apps.mjs'
 
 /** 钱和不可逆动作：任何时候都不做 */
 const DANGER = [
@@ -37,6 +37,8 @@ const STOPWORDS = ['登录', '验证码', '人脸', '指纹', '密码', '滑块'
 export const BLIND = ['open', 'stop', 'home', 'back', 'fling', 'swipe', 'wait', 'key']
 
 export const SYSTEM = `你正在操作一台鸿蒙（HarmonyOS）手机。**默认不看屏幕**：能用命令和手势办到的事，就别要求看界面。
+但你**是来读的，不是来滑的**：进了有内容的页面（帖子、回答、文章、视频详情、商品详情），先把这屏看懂，
+用 note 记一句你读到了什么，再决定下一步。
 
 返回**一行 JSON**，不要解释、不要代码块。可以是单个动作，也可以是 {"actions":[动作1,动作2,动作3]}（最多 3 个连贯动作，会被按顺序执行，任一步失败就停）。
 
@@ -52,13 +54,18 @@ export const SYSTEM = `你正在操作一台鸿蒙（HarmonyOS）手机。**默�
 - text   往当前输入框打字：{"action":"text","text":"..."}
 - click  点清单里的第 idx 条：{"action":"click","idx":3}（**必须有当前清单**）
 - tap    点某个坐标：{"action":"tap","x":540,"y":1200}
+- note   记一句你读到了什么：{"action":"note","text":"这篇说雪穗她妈拿女儿身体换钱，作者把恶归给泡沫经济"}
+        必须是你刚在这屏上真读到的（谁说了什么、讲了哪件事），40 字以内；不要写「看了个帖子」这种空话。
 - dump   我要看一帧当前界面：{"action":"dump"}（这一帧要花钱，只在真需要定位内容时用）
 - done   收工：{"action":"done","why":"..."}
 
 铁律：
 - 只有在**给了清单**的时候才能 click；没给清单就先用 open/fling/home/back 这类盲动作。
-- done 只允许三种情况：剩余时间不到 60 秒、撞上登录/验证码/权限弹窗、同一界面连着 3 次没变化。
-  还有时间就继续玩，不要因为「感觉玩够了」收工。
+- **读了就记**：每进一个新内容页，dump 一帧读懂，然后 note 下来（一批动作里可以 dump + note 连着给）。
+  同一页不要拿同一件事重复 note。
+- note 是收工汇报的唯一依据：没 note 就等于没读，汇报时只能说「没读进去」。
+- done 只允许三种情况：剩下不到总时长的 15%、撞上登录/验证码/权限弹窗、同一界面连着 3 次没变化。
+  还有时间、或者记下的条数还不够，就继续读，不要因为「感觉差不多了」收工。
 - 看到登录、验证码、人脸、指纹、支付、权限弹窗：立刻 done，并在 why 里说明被什么拦住。
 - 不做任何付款、下单、删除、卸载、注销、退出登录之类的动作。
 - 不要连着做两次一模一样的动作；fling 两次没变化就换 open 或 back。
@@ -130,14 +137,159 @@ export function sameScreen(sigA, sigB) {
   return String(sigA || '') === String(sigB || '') && String(sigA || '') !== ''
 }
 
+/** 中文数字 → 阿拉伯数字（只覆盖「几分钟」里会出现的那些） */
+const CN_MIN = {
+  一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9,
+  十: 10, 十一: 11, 十二: 12, 十三: 13, 十四: 14, 十五: 15,
+  二十: 20, 二十二: 22, 二十五: 25, 二十八: 28, 三十: 30,
+}
+
+/** 「半小时 / 一刻钟 / 十分钟 / 30 分钟」→ 分钟数；没提时长返回 0 */
+export function askMinutes(text) {
+  const t = String(text || '')
+  if (/半(个)?(小时|钟头)/.test(t)) return 30
+  if (/一刻钟/.test(t)) return 15
+  if (/一(个)?(小时|钟头)/.test(t)) return 60
+  const m = /([0-9]{1,2}|十[一二三四五六七八九]?|二十[一二三四五六七八九]?|三十)\s*分钟/.exec(t)
+  if (!m) return 0
+  if (/^[0-9]+$/.test(m[1])) return Number(m[1])
+  return CN_MIN[m[1]] || 0
+}
+
+/** 「几篇 / 三篇 / 多看几篇」→ 这次要读进几条；没提返回 0（用设置） */
+export function askWant(text) {
+  const t = String(text || '')
+  const m = /([0-9]{1,2}|两|三|四|五|六|七|八|九|十)\s*篇/.exec(t)
+  if (m) {
+    const n = /^[0-9]+$/.test(m[1]) ? Number(m[1]) : (CN_MIN[m[1]] || 0)
+    if (n) return Math.min(Math.max(n, 1), 12)
+  }
+  if (/(多|再)(看|读|找|刷|翻)(几|两|三|五|十)?篇/.test(t)) return 5
+  return 0
+}
+
+/** 句子里提到的 App（取最长的那个名字，避免「B站」被「站」吃掉之类） */
+export function askApp(text) {
+  const lower = String(text || '').toLowerCase()
+  let best = ''
+  for (const name of Object.keys(APPS)) {
+    if (name.length < 2) continue
+    if (!lower.includes(name.toLowerCase())) continue
+    if (name.length > best.length) best = name
+  }
+  return best
+}
+
+/**
+ * 「主人是不是在让我去玩手机」——模块侧直接判断，不再赌她会不会调 screen_play。
+ *
+ * 只接**祈使句**：句首是 去 / 帮我 / 给我 / 让我 / 让 / 自己 / 你，或者 刷|玩|看|逛 + 手机/App。
+ * 「我昨天去玩了十分钟」这种自我叙述不接，避免把聊天当命令。
+ * 返回 { minutes, app, want, goal }，接不住返回 null。
+ */
+export function parsePlayAsk(text, { defaultMinutes = 10 } = {}) {
+  const goal = String(text || '').trim()
+  if (!goal || goal.length > 120) return null
+  if (/(别玩|别刷|不要|不用|不想|先别|等我|等会|取消)/.test(goal)) return null
+
+  const app = askApp(goal)
+  const head = goal.slice(0, 10).replace(/^[\s　]+/, '')
+  const imperative = /^(那|好|行|嗯|ok|OK)?\s*(你|你自己|帮我|帮我去|给我|让我|让|去|自己)/.test(head)
+  const bare = /^(那|好|行|嗯)?\s*(刷|玩|逛|看)(会儿|一会|一下|一圈|阵子)/.test(head) && (!!app || /手机/.test(goal))
+  if (!imperative && !bare) return null
+
+  const minutes = askMinutes(goal)
+  const playish = /(玩|刷|逛|看|找|读|翻)/.test(goal)
+  if (!minutes && !(playish && (app || /手机/.test(goal)))) return null
+
+  return { minutes: minutes || defaultMinutes, app, want: askWant(goal), goal }
+}
+
+/** 界面上那些模板化的按钮/栏目词：拼「正文摘录」时要滤掉，免得模型把按钮当内容读 */
+const CHROME = new Set([
+  '首页', '关注', '推荐', '热榜', '视频', '想法', '直播', '返回', '分享', '收藏',
+  '点赞', '赞同', '反对', '评论', '更多', '搜索', '发布', '写回答', '邀请回答',
+  '查看全部', '展开', '收起', '关注问题', '已关注', '打开', '复制', '举报',
+  '不感兴趣', '下一个', '播放', '暂停', '关注了', '赞同了', '收藏了',
+])
+
+/**
+ * 控件树 → 「清单 + 序号→条目」；序号就是模型说的 idx。
+ * maxChars 决定一条能看多少字：太短会把正文截成半句（默认 60 字，够放一整段短评）。
+ */
+export function renderFrame(items, { maxLines = 28, maxChars = 60 } = {}) {
+  const lines = []
+  for (const it of items) {
+    const label = it.label || it.text || it.desc
+    if (!label) continue
+    if (lines.length >= maxLines) break
+    const flags = []
+    if (it.clickable) flags.push('可点')
+    if (it.scrollable) flags.push('可滚')
+    lines.push(`${lines.length + 1}. ${String(label).replace(/\s+/g, ' ').slice(0, maxChars)}${flags.length ? ` [${flags.join('/')}]` : ''} @${it.bounds.cx},${it.bounds.cy}`)
+  }
+  return lines
+}
+
+/**
+ * 正文摘录：把这一屏真正「像句子」的文字按阅读顺序拼起来（滤掉按钮词、纯数字、太短的标签）。
+ * 这是给她读内容用的，跟「清单」（找按钮用）分开——清单带序号和坐标，摘录只给文字。
+ */
+export function pickSnippet(items, { maxChars = 500, minLen = 8 } = {}) {
+  const out = []
+  let used = 0
+  for (const it of items) {
+    const label = String(it.label || it.text || it.desc || '').replace(/\s+/g, ' ').trim()
+    if (label.length < minLen) continue
+    if (CHROME.has(label)) continue
+    if (/^\(.*\)$/.test(label)) continue                    // 没有文字的容器，只有个 id：不是正文
+    if (/^[\d:+\-%.,，。！？!?、；;]+$/.test(label.replace(/\s+/g, ''))) continue
+    if (used + label.length > maxChars) break
+    out.push(label)
+    used += label.length + 1
+  }
+  return out.join('\n')
+}
+
+/**
+ * 记一条「读到了什么」。同一件事不重复记，最多留 max 条（最早的自然淘汰）。
+ * 返回新数组，不改传进来的那个。
+ */
+export function addTakeaway(list, text, { max = 12, maxLen = 60 } = {}) {
+  const cur = Array.isArray(list) ? list.slice() : []
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, maxLen)
+  if (!t) return cur
+  const norm = (s) => s.replace(/[\s，,。.！!？?、；;：:]/g, '')
+  const hit = cur.find((x) => {
+    const a = norm(x)
+    const b = norm(t)
+    return a === b || (b.length >= 6 && a.includes(b)) || (a.length >= 6 && b.includes(a))
+  })
+  if (hit) return cur
+  cur.push(t)
+  if (cur.length > max) cur.splice(0, cur.length - max)
+  return cur
+}
+
 /**
  * 模型说 done 的时候，到底准不准它收工。
- * 还有大把时间就不许收工；刚开没多久也不许。最多容忍两次「想收工」。
+ * 三道闸门，任一没过就无视：
+ * 1) 收获不够：这次要 want 条「读到了什么」，没攒够且还剩 15% 以上时间 → 继续读；
+ * 2) 时间还多（默认剩 30% 以上）；
+ * 3) 步数太少（刚开没多久）。
+ * 但最多只拦 maxDoneIgnores 次：拦太多次会把整轮拖成死循环，宁可让她收工。
  */
-export function shouldIgnoreDone({ left = 0, total = 0, steps = 0, ignored = 0, minSteps = 8, graceRatio = 0.3 } = {}) {
-  if (ignored >= 2) return false
+export function shouldIgnoreDone({
+  left = 0, total = 0, steps = 0, ignored = 0,
+  minSteps = 8, graceRatio = 0.3,
+  takeaways = 0, want = 0, maxDoneIgnores = 4,
+} = {}) {
+  if (Number(ignored) >= Number(maxDoneIgnores)) return false
+  const totalMs = Number(total) || 0
+  const leftMs = Number(left) || 0
+  if (Number(want) > 0 && Number(takeaways) < Number(want) && leftMs > totalMs * 0.15) return true
   const grace = Math.max(0, Number(graceRatio) || 0.3)
-  if (Number(left) > Number(total) * grace) return true
+  if (leftMs > totalMs * grace) return true
   if (Number(steps) < Number(minSteps)) return true
   return false
 }
@@ -175,27 +327,14 @@ export function createPlay({ api, dev, launcher, settings, log }) {
       steps: session.steps,
       dumps: session.dumps,
       blind: session.blind,
+      takeaways: session.takeaways.length,
+      want: session.want,
       softFails: session.softFails,
       reason: session.reason || '',
       lastAction: session.lastAction,
       lastWhy: session.lastWhy,
       trace: session.trace.slice(-20),
     }
-  }
-
-  /** 控件树 → 「清单 + 序号→条目」；序号就是模型说的 idx */
-  function renderFrame(items, maxLines = 24) {
-    const lines = []
-    for (const it of items) {
-      const label = it.label || it.text || it.desc
-      if (!label) continue
-      if (lines.length >= maxLines) break
-      const flags = []
-      if (it.clickable) flags.push('可点')
-      if (it.scrollable) flags.push('可滚')
-      lines.push(`${lines.length + 1}. ${String(label).replace(/\s+/g, ' ').slice(0, 26)}${flags.length ? ` [${flags.join('/')}]` : ''} @${it.bounds.cx},${it.bounds.cy}`)
-    }
-    return lines
   }
 
   /** 看一帧（唯一花钱的地方，所有调用都从这里走） */
@@ -205,10 +344,14 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     const items = flatten(l.tree)
     const labels = items.map((i) => i.label).filter(Boolean)
     const diff = diffLabels(labels, s.frame ? s.frame.labels : [])
+    const lines = renderFrame(items, { maxLines: s.frameLines, maxChars: s.frameChars })
+    const snippet = s.snippetChars > 0 ? pickSnippet(items, { maxChars: s.snippetChars }) : ''
     s.frame = {
       items,
       labels,
-      lines: renderFrame(items),
+      lines,
+      snippet,
+      noted: false,
       size: l.size || s.size,
       sig: frameSignature(items),
       changed: diff.changed,
@@ -218,7 +361,10 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     s.dumps++
     s.actionsSinceDump = 0
     s.lastDumpWhy = why
-    if (why) log.debug(`[screen] dump（${why}）：${items.length} 节点，${diff.changed ? `有变化 +${diff.added.length}` : '和上一帧一样'}`)
+    if (snippet) {
+      s.recent = (s.recent || []).concat([{ app: s.bundle || s.app || '', snippet, at: now() }]).slice(-3)
+    }
+    if (why) log.debug(`[screen] dump（${why}）：${items.length} 节点，清单 ${lines.length} 行，正文 ${snippet.length} 字，${diff.changed ? `有变化 +${diff.added.length}` : '和上一帧一样'}`)
     return { ok: true, frame: s.frame, diff }
   }
 
@@ -252,6 +398,7 @@ export function createPlay({ api, dev, launcher, settings, log }) {
       case 'text': return `输入「${String(action.text || '').slice(0, 10)}」`
       case 'key': return `按键 ${action.key}`
       case 'wait': return '等了一下'
+      case 'note': return `记「${String(action.text || '').slice(0, 12)}」`
       case 'dump': return '看了一帧'
       case 'done': return '收工'
       default: return `动作 ${a || '?'}`
@@ -321,6 +468,19 @@ export function createPlay({ api, dev, launcher, settings, log }) {
         await sleep(Math.min(Math.max(Number(action.ms) || 1600, 600), 8000))
         return { ok: true, note: '等了一下' }
       }
+      case 'note': {
+        const text = String(action.text || '').trim()
+        if (!text) return { ok: false, error: 'note 要带 text（你读到了什么）' }
+        const before = s.takeaways.length
+        s.takeaways = addTakeaway(s.takeaways, text, { max: 12, maxLen: 60 })
+        if (s.frame) s.frame.noted = true
+        const added = s.takeaways.length > before
+        return {
+          ok: true,
+          note: added ? `记下第 ${s.takeaways.length} 条：${s.takeaways[s.takeaways.length - 1].slice(0, 24)}` : '这条之前记过了，跳过',
+          noted: added,
+        }
+      }
       case 'click': {
         if (!s.frame || !s.frame.items.length) {
           const d = await dumpFrame(s, 'click 但手里没有帧')
@@ -354,15 +514,25 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     const head = [
       `任务：${s.goal}`,
       `时间：已过 ${mmss(elapsed)}，还剩 ${mmss(left)}。第 ${s.steps} 个动作，模式：${s.mode === 'human' ? '像人一样点' : '优先用系统命令'}。`,
+      s.want ? `收获：已记下 ${s.takeaways.length} 条，这次至少要 ${s.want} 条「你读到了什么」才算读过。` : '',
       s.bundle ? `前台应用：${s.bundle}` : '',
       s.lastAction ? `上一批动作：${s.lastAction} —— ${s.lastResult}` : '',
     ].filter(Boolean)
 
     const parts = [...head]
+    if (s.takeaways.length) {
+      parts.push('你已经记下的（别重复记同一件事）：')
+      parts.push(s.takeaways.slice(-5).map((t, i) => `${i + 1}. ${t}`).join('\n'))
+    }
     if (s.frame) {
       const age = Math.round((now() - s.frame.at) / 1000)
       parts.push(`清单（${age} 秒前看的${age > 12 ? '，可能已经变了' : ''}${s.frame.changed ? '，与上一帧相比有变化' : '，与上一帧基本一样'}）：`)
       parts.push(s.frame.lines.join('\n') || '(这屏没有可辨认的元素)')
+      if (s.frame.snippet) {
+        parts.push('这屏的正文（读它，不要只找按钮）：')
+        parts.push(s.frame.snippet)
+      }
+      if (!s.frame.noted) parts.push('这屏你还没记过：读完先 note 一句你要记住的内容，再翻页或点下一层。')
     } else {
       parts.push('现在没有当前清单：请用不需要看屏幕的动作（open / stop / home / back / fling / swipe / wait），需要看清再返回 dump。')
     }
@@ -375,10 +545,13 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     const s = session
     if (!s || !s.running) return
     if (now() >= s.deadline) return finish('timeout')
+    /** 主人随时可能喊停：任何一次 await 回来都要先看这个会话还算不算数 */
+    const dead = () => session !== s
 
     // 到点该校验一帧（或者刚换过应用、或者手里根本没帧）
     if (!s.frame || s.actionsSinceDump >= s.dumpEvery || s.needFrame) {
       const d = await dumpFrame(s, s.needFrame ? '要求校验' : '每 K 个动作校验一次')
+      if (dead()) return
       s.needFrame = false
       if (!d.ok) {
         s.layoutFails++
@@ -399,6 +572,7 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     }
 
     const fg = await dev.foreground()
+    if (dead()) return
     if (fg.ok && fg.bundle && s.bundle && fg.bundle !== s.bundle && !/sceneboard|launcher/i.test(fg.bundle)) {
       s.drifted++
       pushTrace(s, `跑到了 ${fg.bundle}（第 ${s.drifted} 次）`)
@@ -418,7 +592,7 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     let actions = []
     for (let attempt = 0; attempt < 2 && !actions.length; attempt++) {
       try {
-        const answer = await api.ask({ system: SYSTEM, text: buildPrompt(s), maxTokens: 300 })
+        const answer = await api.ask({ system: SYSTEM, text: buildPrompt(s), maxTokens: 420 })
         actions = pickActions(answer, { max: 3 })
       } catch (e) {
         s.notes.push(`模型没答上来：${e && e.message}`)
@@ -439,7 +613,10 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     const batchNotes = []
     for (const action of actions) {
       if (now() >= s.deadline) break
-      const blocked = screenAction(action, { allowPost: s.allowPost })
+      // 主人可能在上一步执行的中间就喊停了：这一批动作一个都不许再落到手机上
+      if (session !== s) return
+      // note 只是记一句话，没有任何副作用：它描述的内容里出现「登录」也不该被当成撞墙
+      const blocked = action.action === 'note' ? '' : screenAction(action, { allowPost: s.allowPost })
       if (blocked) {
         s.lastAction = describe(action)
         s.lastResult = `没做（${blocked}）`
@@ -456,12 +633,21 @@ export function createPlay({ api, dev, launcher, settings, log }) {
           ignored: s.doneIgnored,
           minSteps: s.minSteps,
           graceRatio: s.graceRatio,
+          takeaways: s.takeaways.length,
+          want: s.want,
+          maxDoneIgnores: s.maxDoneIgnores,
         })) {
           s.doneIgnored++
           s.softFails = 0
-          pushTrace(s, `不理她的收工请求（第 ${s.doneIgnored} 次），还剩 ${mmss(s.deadline - now())}`)
+          const left = s.deadline - now()
+          const lacking = s.want > s.takeaways.length
+          const byGain = lacking && left > s.totalMs * 0.15
+          const why = byGain
+            ? `收获还差 ${s.want - s.takeaways.length} 条`
+            : (s.steps < s.minSteps ? '才走了几步' : '时间还多')
+          pushTrace(s, `不让她收工（${why}，第 ${s.doneIgnored} 次），还剩 ${mmss(left)}`)
           s.lastAction = '她想收工'
-          s.lastResult = '还剩不少时间，不让收工'
+          s.lastResult = `不让收工：${why}，继续`
           continue
         }
         return finish('done')
@@ -470,7 +656,8 @@ export function createPlay({ api, dev, launcher, settings, log }) {
       const res = await execute(s, action)
       s.steps++
       s.actionsSinceDump++
-      if (!BLIND.includes(action.action) && action.action !== 'dump') s.visualActions = (s.visualActions || 0) + 1
+      if (action.action === 'note') { /* 记一笔不读屏，不算视觉动作 */ }
+      else if (!BLIND.includes(action.action) && action.action !== 'dump') s.visualActions = (s.visualActions || 0) + 1
       else if (BLIND.includes(action.action)) s.blind++
       s.lastAction = describe(action)
       s.lastResult = res.ok ? (res.note || '成功') : `失败：${res.error}`
@@ -527,11 +714,22 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     if (s.timer) { clearTimeout(s.timer); s.timer = null }
 
     const played = now() - s.startedAt
+    const late = now() - s.deadline
+    log.info(`[screen] 自主玩手机结束：${reason}（玩了 ${mmss(played)}，${s.steps} 步，${s.dumps} 帧，记了 ${s.takeaways.length} 条${late > 60000 ? `；比预定晚了 ${mmss(late)}，多半是电脑睡眠冻住了定时器` : ''}）`)
+
     const summary = [
-      `玩了 ${mmss(played)}，做了 ${s.steps} 个动作；看了 ${s.dumps} 帧界面（其中 ${s.blind || 0} 个动作完全没看屏幕），最后停在 ${s.bundle || '桌面'}。`,
-      s.trace.length ? `过程：${s.trace.slice(-8).join('；')}` : '',
+      `玩了 ${mmss(played)}，做了 ${s.steps} 个动作；看了 ${s.dumps} 帧界面（其中 ${s.blind || 0} 个动作完全没看屏幕），记下 ${s.takeaways.length} 条读到的东西；最后停在 ${s.bundle || '桌面'}。`,
+      s.trace.length ? `过程：${s.trace.slice(-6).join('；')}` : '',
       s.notes.length ? `要说的：${s.notes.slice(-4).join('；')}` : '',
       `结束原因：${reason}`,
+    ].filter(Boolean).join('\n')
+
+    /** 汇报的唯一依据：她自己记下的那几条 + 最后两屏正文，而不是动作清单 */
+    const picks = s.takeaways.slice(-8)
+    const recent = (s.recent || []).slice(-2).map((r) => `·（${r.app || '手机'}）${r.snippet}`)
+    const evidence = [
+      picks.length ? `你这次真读到的（${picks.length} 条）：\n${picks.map((t, i) => `${i + 1}. ${t}`).join('\n')}` : '',
+      recent.length ? `最后两屏的正文摘录：\n${recent.join('\n')}` : '',
     ].filter(Boolean).join('\n')
 
     await dev.key('Home').catch(() => {})
@@ -540,7 +738,12 @@ export function createPlay({ api, dev, launcher, settings, log }) {
     let voice = summary
     try {
       const said = await api.think(
-        `你刚在手机上玩了 ${mmss(played)}（任务：${s.goal}）。经过：${summary}\n用你自己的话，像跟主人聊天那样汇报三四句：先说玩了什么、看到什么好玩的，再说有没有卡住的地方。不要列动作清单，不要说"作为AI"，不要编你没看到的内容。${s.dumps ? '' : '（这次她基本没看屏幕，全是盲操作，汇报里别说看到了具体内容）'}`,
+        `你刚在手机上玩了 ${mmss(played)}（任务：${s.goal}）。${summary}\n` +
+        `${evidence || '（这次一条「读到了什么」都没记下来）'}\n` +
+        '用你自己的话，像跟主人聊天那样汇报三到五句：\n' +
+        '1) 至少说出两三个具体的点：哪一篇/谁说的/讲了什么，就用上面记下的内容，不要复述动作；\n' +
+        '2) 一条都没记的话，就照实说「这次没真读进去，只翻了半天」，不要编；\n' +
+        '3) 不要列动作清单，不要说「作为 AI」。',
         { title: '玩手机汇报', timeoutMs: 120000 },
       )
       if (said && String(said).trim()) voice = String(said).trim()
@@ -558,7 +761,7 @@ export function createPlay({ api, dev, launcher, settings, log }) {
   }
 
   /** 开始一次「自主玩手机」 */
-  async function start({ minutes = 10, app = '', goal = '', chatId = '', allowPost = false, mode = '', dumpEvery = 0 } = {}) {
+  async function start({ minutes = 10, app = '', goal = '', chatId = '', allowPost = false, mode = '', dumpEvery = 0, want = 0 } = {}) {
     if (session) {
       return { ok: false, message: `已经在玩了（${session.app}，已经 ${mmss(now() - session.startedAt)}），要换就说"别玩了"` }
     }
@@ -601,6 +804,13 @@ export function createPlay({ api, dev, launcher, settings, log }) {
       layoutFails: 0,
       doneIgnored: 0,
       drifted: 0,
+      takeaways: [],
+      want: Math.min(Math.max(Number(want) || Number(conf.playWant) || 3, 0), 12),
+      maxDoneIgnores: Math.min(Math.max(Number(conf.maxDoneIgnores) || 4, 1), 10),
+      frameLines: Math.min(Math.max(Number(conf.frameLines) || 28, 12), 60),
+      frameChars: Math.min(Math.max(Number(conf.frameChars) || 60, 20), 200),
+      snippetChars: Math.min(Math.max(Number(conf.snippetChars) || 500, 0), 2000),
+      recent: [],
       graceRatio: Math.min(Math.max(Number(conf.doneGraceRatio) || 0.3, 0), 0.8),
       minSteps: Math.min(Math.max(Number(conf.minSteps) || 8, 0), 60),
       maxRecoverable: Math.min(Math.max(Number(conf.maxRecoverable) || 12, 3), 60),
@@ -619,11 +829,11 @@ export function createPlay({ api, dev, launcher, settings, log }) {
       lastWhy: '',
       timer: null,
     }
-    log.info(`[screen] 开始自主玩手机：${target} ${mins} 分钟（${opened.via}，模式 ${playMode}，每 ${session.dumpEvery} 个动作看一帧）`)
+    log.info(`[screen] 开始自主玩手机：${target} ${mins} 分钟（${opened.via}，模式 ${playMode}，每 ${session.dumpEvery} 个动作看一帧，目标 ${session.want} 条收获）`)
     schedule(Math.max(1200, Math.round(gap / 2)))
     return {
       ok: true,
-      message: `已经打开「${target}」（${opened.via}）开始玩了，${mins} 分钟后我回来汇报。要提前收工就说"别玩了"。`,
+      message: `已经打开「${target}」（${opened.via}）开始玩了，${mins} 分钟后我回来汇报（这次至少要读进 ${session.want} 条内容才收工）。要提前收工就说"别玩了"。`,
       until: session.deadline,
     }
   }
