@@ -1,8 +1,8 @@
 {
   "id": "screen",
   "name": "手机屏幕",
-  "version": "1.1.0",
-  "description": "用 hdc 操作鸿蒙手机：命令开应用、点按滑、打字按键、看图看文字，还能自己挑应用去玩一阵再回来汇报",
+  "version": "1.2.1",
+  "description": "用 hdc 操作鸿蒙手机：命令开应用、点按滑、打字按键、看图看文字，还能自己挑应用去玩一阵、边看边记读到的内容再回来汇报",
   "category": "tool",
   "tags": ["鸿蒙", "HarmonyOS", "hdc", "手机", "自动化"],
   "author": "Flash-Walker",

@@ -31,6 +31,8 @@ export const APPS = {
   音乐: { bundle: 'com.huawei.hmos.music', ability: '' },
   华为音乐: { bundle: 'com.huawei.hmos.music', ability: '' },
   支付宝: { bundle: 'com.alipay', ability: '' },
+  知乎: { bundle: 'com.zhihu.hmos', ability: 'PhoneAbility' },
+  豆瓣: { bundle: 'com.douban.frodo', ability: '' },
 }
 
 /**
