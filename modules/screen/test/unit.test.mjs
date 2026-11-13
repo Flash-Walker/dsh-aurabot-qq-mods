@@ -7,11 +7,11 @@ import assert from 'node:assert/strict'
 import {
   parseBounds, parseDump, screenSize, flatten, findByText, clickTarget, pointOf, toLines,
 } from '../lib/layout.mjs'
-import { pickJson, pickActions, screenAction, shouldIgnoreDone, diffLabels, frameSignature, isHdcError } from '../lib/play.mjs'
+import { pickJson, pickActions, screenAction, shouldIgnoreDone, diffLabels, frameSignature, isHdcError, renderFrame, pickSnippet, addTakeaway, parsePlayAsk } from '../lib/play.mjs'
 import { resolveBundle } from '../lib/launcher.mjs'
 import { APPS, abilityFromIconId, resolveApp, learnFromItems, pickAbilities } from '../lib/apps.mjs'
 
-/** 一段迷你控件树，结构照抄真机（图标名字不可点，热区在带包名 id 的父容器上） */
+/** 一段迷你控件树，结构照拄真机（图标名字不可点，热区在带包名 id 的父容器上） */
 const tree = {
   attributes: { bounds: '[0,0][1080,2406]', type: '' },
   children: [
@@ -21,7 +21,7 @@ const tree = {
         {
           attributes: { type: 'RelativeContainer', clickable: 'true', id: 'Container_AppIcon_Image_com.ss.hm.ugc.awemeMainAbilityentry0_undefined_0', bounds: '[24,1063][282,1351]' },
           children: [
-            { attributes: { type: 'Text', text: '抖音', clickable: 'false', bounds: '[105,1260][202,1302]' }, children: [] },
+            { attributes: { type: 'Text', text: '拖音', clickable: 'false', bounds: '[105,1260][202,1302]' }, children: [] },
           ],
         },
       ],
@@ -61,13 +61,13 @@ test('parseDump 对坏 JSON 报人话', () => {
 
 test('flatten 借文字：图标容器有名字，重复的 Text 条目被去掉', () => {
   const items = flatten(tree)
-  assert.deepEqual(items.map((i) => i.label), ['抖音', 'QQ', '搜索关键词'])
+  assert.deepEqual(items.map((i) => i.label), ['拖音', 'QQ', '搜索关键词'])
   assert.ok(items.every((i) => i.label))
 })
 
 test('findByText：先精确，其次按包名，再次包含', () => {
   const items = flatten(tree)
-  assert.equal(findByText(items, '抖音').label, '抖音')
+  assert.equal(findByText(items, '拖音').label, '拖音')
   assert.equal(findByText(items, 'QQ').label, 'QQ')
   // 名字认不出来但包名对得上，也能落到图标容器上
   assert.equal(findByText(items, '腾讯聊天', { bundle: 'com.tencent.mqq' }).id.includes('com.tencent.mqq'), true)
@@ -76,7 +76,7 @@ test('findByText：先精确，其次按包名，再次包含', () => {
 
 test('pointOf：点在可点父容器中心，而不是文字自己', () => {
   const items = flatten(tree)
-  const douyin = items.find((i) => i.label === '抖音')
+  const douyin = items.find((i) => i.label === '拖音')
   assert.equal(douyin.clickable, true)
   assert.equal(clickTarget(douyin).id.includes('Container_AppIcon'), true)
   assert.deepEqual(pointOf(douyin), { x: 153, y: 1207, via: 'Container_AppIcon_Image_com.ss.hm.ugc.awemeMainAbilityentry0_undefined_0' })
@@ -100,7 +100,7 @@ test('借文字时优先图标名，不把未读角标当名字', () => {
 
 test('toLines 带序号和标记', () => {
   const lines = toLines(flatten(tree), { maxLines: 10 })
-  assert.match(lines[0], /^1\. 抖音 \[可点\] @153,1207$/)
+  assert.match(lines[0], /^1\. 拖音 \[可点\] @153,1207$/)
   assert.equal(lines.length, 3)
 })
 test('pickJson 能从模型的花式回复里抠出 JSON', () => {
@@ -120,7 +120,7 @@ test('红线：钱 / 不可逆 / 验证 / 对外发言', () => {
 })
 
 test('resolveBundle：名字映射包名，包名原样返回', () => {
-  assert.equal(resolveBundle('抖音'), 'com.ss.hm.ugc.aweme')
+  assert.equal(resolveBundle('拖音'), 'com.ss.hm.ugc.aweme')
   assert.equal(resolveBundle('QQ'), 'com.tencent.mqq')
   assert.equal(resolveBundle('小红书的'), '')          // 不认识的中文名字 → 交给桌面/搜索
   assert.equal(resolveBundle('com.example.app'), 'com.example.app')
@@ -172,11 +172,97 @@ test('pickActions：支持一次给 3 个连贯动作，单个动作也认', () 
   assert.equal(pickActions('不给你 JSON').length, 0)
 })
 
-test('shouldIgnoreDone：时间还多就不许收工，最多容忍两次', () => {
+test('shouldIgnoreDone：时间还多就不许收工，最多拦四次', () => {
   assert.equal(shouldIgnoreDone({ left: 500000, total: 600000, steps: 20 }), true)
   assert.equal(shouldIgnoreDone({ left: 30000, total: 600000, steps: 20 }), false)
   assert.equal(shouldIgnoreDone({ left: 500000, total: 600000, steps: 3, minSteps: 8 }), true)
-  assert.equal(shouldIgnoreDone({ left: 500000, total: 600000, steps: 20, ignored: 2 }), false)
+  assert.equal(shouldIgnoreDone({ left: 500000, total: 600000, steps: 20, ignored: 2 }), true)
+  assert.equal(shouldIgnoreDone({ left: 500000, total: 600000, steps: 20, ignored: 4 }), false)
+})
+
+test('shouldIgnoreDone：收获不够也拦，读够了才放行', () => {
+  // 只剩 20% 时间（已过 grace）、步数也够 —— 但只记了 1 条、要 3 条：继续读
+  assert.equal(shouldIgnoreDone({ left: 120000, total: 600000, steps: 30, takeaways: 1, want: 3 }), true)
+  // 记够 3 条：同样的时间/步数，允许收工
+  assert.equal(shouldIgnoreDone({ left: 120000, total: 600000, steps: 30, takeaways: 3, want: 3 }), false)
+  // 收获不够但时间真见底（只剩 5%）：不再硬撑
+  assert.equal(shouldIgnoreDone({ left: 30000, total: 600000, steps: 30, takeaways: 0, want: 3 }), false)
+  // want 填 0 = 不看收获
+  assert.equal(shouldIgnoreDone({ left: 30000, total: 600000, steps: 30, takeaways: 0, want: 0 }), false)
+})
+
+test('renderFrame：行数与每条字数都可配，默认比老版本宽', () => {
+  const items = [
+    { label: '短标签', clickable: true, bounds: { cx: 1, cy: 2 } },
+    { label: 'x'.repeat(120), clickable: false, bounds: { cx: 3, cy: 4 } },
+  ]
+  const wide = renderFrame(items)
+  assert.equal(wide.length, 2)
+  assert.equal(wide[1].length > 60, true)                       // 默认 60 字，不再是 26
+  assert.match(wide[0], /^1\. 短标签 \[可点\] @1,2$/)
+  const narrow = renderFrame(items, { maxChars: 26 })
+  assert.equal(narrow[1].includes('x'.repeat(27)), false)
+  assert.equal(renderFrame(items, { maxLines: 1 }).length, 1)
+})
+
+test('pickSnippet：滤掉按钮词和纯数字，按顺序拼正文', () => {
+  const items = [
+    { label: '关注' },
+    { label: '赞同 1234' },
+    { label: '写回答' },
+    { label: '书里没明说，但你从她平时那个状态就看得出，这个家早就散了' },
+    { label: '1' },
+    { label: '一个四面漏风、没有人味的环境。' },
+  ]
+  const s = pickSnippet(items)
+  assert.equal(s.includes('关注'), false)
+  assert.equal(s.includes('写回答'), false)
+  assert.equal(s.includes('\n'), true)
+  assert.match(s, /书里没明说/)
+  assert.match(s, /四面漏风/)
+  // 字数上限会截断
+  assert.equal(pickSnippet(items, { maxChars: 20 }).includes('四面漏风'), false)
+})
+
+test('addTakeaway：去重、封顶，不改原数组', () => {
+  const base = ['这篇说雪穗她妈拿女儿身体换钱']
+  const same = addTakeaway(base, '这篇说雪穗她妈拿女儿身体换钱。')
+  assert.deepEqual(same, base)
+  assert.deepEqual(base.length, 1)
+  const more = addTakeaway(base, '鹿鹿先生把人物分成三类，说雪穗和亮司是「既失败又成功」')
+  assert.equal(more.length, 2)
+  assert.equal(addTakeaway([], '', {}).length, 0)
+  const overflow = addTakeaway(Array.from({ length: 12 }, (_, i) => `第 ${i} 条内容足够长`), '第 13 条内容足够长', { max: 12 })
+  assert.equal(overflow.length, 12)
+  assert.equal(overflow[0], '第 1 条内容足够长')
+})
+
+test('parsePlayAsk：主人让她去玩才接住，自我叙述和别的指令不接', () => {
+  const a = parsePlayAsk('去玩十分钟手机')
+  assert.equal(a.minutes, 10)
+  assert.equal(a.want, 0)                       // 没提「几篇」→ 用设置里的 playWant
+  assert.equal(a.app, '')
+
+  assert.deepEqual(parsePlayAsk('去刷会儿拖音', { defaultMinutes: 12 }), {
+    minutes: 12, app: '拖音', want: 0, goal: '去刷会儿拖音',
+  })
+
+  const z = parsePlayAsk('去知乎找《白夜行》书评，半小时，多看几篇')
+  assert.equal(z.app, '知乎')
+  assert.equal(z.minutes, 30)
+  assert.equal(z.want, 5)
+
+  const x = parsePlayAsk('帮我去小红书看会儿，20 分钟，要三篇')
+  assert.equal(x.app, '小红书')
+  assert.equal(x.minutes, 20)
+  assert.equal(x.want, 3)
+
+  // 不能接的：自我叙述、别的手机指令、否定
+  assert.equal(parsePlayAsk('我昨天去玩了十分钟'), null)
+  assert.equal(parsePlayAsk('看一眼我手机现在什么界面'), null)
+  assert.equal(parsePlayAsk('把拖音打开'), null)
+  assert.equal(parsePlayAsk('别玩了，回来'), null)
+  assert.equal(parsePlayAsk('刷会儿'), null)       // 没说手机也没说 App
 })
 
 test('帧对比：同样的文字算没变化，多出来的文字算变化', () => {
