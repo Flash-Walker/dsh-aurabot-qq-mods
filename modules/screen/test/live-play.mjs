@@ -38,12 +38,21 @@ const log = {
   debug: (...a) => console.log('  [debug]', ...a),
 }
 
-/** 假模型：按回合给动作，模拟「刷一刷、停一下、点开一个、偶尔退一下」，并且**故意早早喊收工** */
+/**
+ * 假模型：按回合给动作，模拟「刷一刷、停一下、点开一个、偶尔退一下」，
+ * 看到正文就顺手 note 一条（模拟真的在读），并且**故意早早喊收工**（验「不许提前收工」）。
+ */
 function fakeModel(text) {
   const n = ++askCount
   const firstIdx = /^1\./m.test(text) ? 1 : null
-  // 专门验证「不许提前收工」：第 4 次和第 11 次都喊 done，应该被忽略
+  const noted = Number((/已记下 (\d+) 条/.exec(text) || [])[1] || 0)
+  const body = (/这屏的正文（读它，不要只找按钮）：\n([^\n]+)/.exec(text) || [])[1] || ''
+  // 第 4 次和每 11 次都喊 done，应该被忽略（时间还多 / 收获还不够）
   if (n === 4 || n % 11 === 0) return '{"why":"感觉玩够了","action":"done"}'
+  // 有正文、还没记够，就先记一条：这一条会进 takeaways，最后汇报要用它
+  if (body && noted < 3 && n % 2 === 0) {
+    return JSON.stringify({ actions: [{ action: 'note', text: `读到：${body.slice(0, 26)}` }] })
+  }
   if (n % 6 === 0) return '{"actions":[{"action":"fling","dir":"up"},{"action":"fling","dir":"up"},{"action":"wait","ms":1200}]}'
   if (n % 9 === 0) return '{"why":"回一下上一屏","action":"back"}'
   if (n % 5 === 0 && firstIdx) return '{"why":"点开这一屏最上面那条看看","action":"click","idx":1}'
@@ -66,13 +75,23 @@ const api = {
     stepMs: Number(process.env.STEP_MS) || 6000,
     dumpEvery: Number(process.env.DUMP_EVERY) || 3,
     playMinutes: minutes,
+    playWant: Number(process.env.WANT) || 3,
   }),
   saveSettings: () => {},
   send: async (chatId, text) => { sent.push([chatId, text]); console.log(`\n=== 汇报（${chatId}）===\n${text}`) },
   sendText: async () => {}, reply: async () => {},
   sendImage: async () => {},
   ask: async ({ text }) => fakeModel(text),
-  think: async () => '',
+  // 假汇报：把「你这次真读到的」那几条挑出来念，用来验证 note → 汇报这条链路真的通了
+  think: async (prompt) => {
+    const text = String(prompt)
+    console.log(`\n=== 汇报 prompt（节选）===\n${text.slice(0, 1200)}`)
+    const seg = (text.match(/你这次真读到的（\d+ 条）：\n([\s\S]*?)(?:\n最后两屏|\n（这次)/) || [])[1] || ''
+    const picks = seg.split('\n').map((l) => l.replace(/^\d+\. /, '').trim()).filter(Boolean).slice(0, 3)
+    return picks.length
+      ? `（假模型汇报）这次真读到了：${picks.join('；')}。`
+      : '（假模型汇报）这次没真读进去，只翻了几下。'
+  },
   onebot: async () => ({}),
   tool: (fn) => { toolsFactory = fn },
   defineTool: (def) => def,
@@ -99,7 +118,7 @@ async function call(name, args = {}) {
   return r
 }
 
-const started = await call('screen_play', { minutes, app: process.env.PLAY_APP || '抖音', goal: '随便刷刷，看看有什么好玩的' })
+const started = await call('screen_play', { minutes, app: process.env.PLAY_APP || '拖音', goal: '随便刷刷，看看有什么好玩的' })
 if (!started.ok) {
   console.error('没启动起来')
   process.exit(1)
