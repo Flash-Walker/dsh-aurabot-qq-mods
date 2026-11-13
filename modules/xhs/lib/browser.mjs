@@ -168,7 +168,7 @@ export function createBrowser({ profileDir, browserPath = () => '', log, now = D
       }
       if (!egoBackend) egoBackend = createEgoBackend({ getJson, log })
       const { port } = await egoBackend.ensure(check)
-      const target = await acquireEgoTarget(port, getBrowserJson)
+      const target = await acquireEgoTarget(port, getBrowserJson, connect)
       check()
       const c = connect(target.webSocketDebuggerUrl)
       try {
@@ -630,7 +630,22 @@ export function createBrowser({ profileDir, browserPath = () => '', log, now = D
    * 卡片尺寸变 0×0、真鼠标点不到，笔记详情一律 404。收起来时挪到右下角一小块，页面仍可见。
    */
   async function show(visible) {
-    if (egoTarget) return // 窗口归 DSH，挪不动
+    if (egoTarget) {
+      // 共享窗口归 DSH 管，但「显示浏览器窗口」不能是空操作 —— 主人扫码、做
+      // 安全验证时点它，要把窗口从屏幕外 (-2400,-2400) 挪回屏幕内、带到前台、
+      // 切到本模块的标签页。收起（visible=false）挪回屏幕外并取消置顶焦点。
+      try {
+        const { windowId } = await cdp.send('Browser.getWindowForTarget')
+        if (visible) {
+          await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {})
+          await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left: 80, top: 60, width: 1280, height: 860 } }).catch(() => {})
+        } else {
+          await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left: -2400, top: -2400 } }).catch(() => {})
+        }
+      } catch { /* 挪窗失败不拦着 bringToFront：能带到前台也算数 */ }
+      if (visible) await cdp?.send('Page.bringToFront').catch(() => {})
+      return
+    }
     const c = need()
     const { windowId } = await c.send('Browser.getWindowForTarget')
     await c.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {})
